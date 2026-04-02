@@ -1,0 +1,27 @@
+{
+  "name": "Bitácora Digital Construrike",
+  "short_name": "Bitácora",
+  "description": "Registro digital de bitácora de obra con captura offline de fotos, GPS y eventos. Proyecto Lean Six Sigma Green Belt - Construrike.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1E40AF",
+  "background_color": "#FFFFFF",
+  "lang": "es-MX",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%231E40AF'/%3E%3Ctext x='96' y='110' font-size='80' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-weight='bold'%3EB%3C/text%3E%3Crect x='30' y='140' width='132' height='4' rx='2' fill='%23F59E0B'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%231E40AF'/%3E%3Ctext x='256' y='290' font-size='220' text-anchor='middle' fill='white' font-family='Arial,sans-serif' font-weight='bold'%3EB%3C/text%3E%3Crect x='80' y='370' width='352' height='10' rx='5' fill='%23F59E0B'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

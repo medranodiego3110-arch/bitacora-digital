@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1E40AF">
+  <meta name="description" content="Bitácora Digital de Obra - Construrike. Registro offline de eventos con foto, GPS y timestamp.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bitácora">
+
+  <title>Bitácora Digital — Construrike</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#EFF6FF',
+              100: '#DBEAFE',
+              500: '#3B82F6',
+              600: '#2563EB',
+              700: '#1D4ED8',
+              800: '#1E40AF',
+              900: '#1E3A8A'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Estilos adicionales -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- HEADER -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <header class="fixed top-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/50">
+    <div class="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
+      <!-- Logo / Título -->
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-brand-800 flex items-center justify-center text-white font-bold text-sm">B</div>
+        <div>
+          <h1 class="text-sm font-bold leading-tight text-white">Bitácora Digital</h1>
+          <p class="text-[10px] text-slate-400 leading-tight">Construrike</p>
+        </div>
+      </div>
+
+      <!-- Indicadores -->
+      <div class="flex items-center gap-2">
+        <!-- Badge pendientes -->
+        <div class="relative">
+          <span class="text-xs text-slate-400">⏳</span>
+          <span id="pending-badge" class="hidden absolute -top-1.5 -right-2 min-w-[16px] h-4 flex items-center justify-center px-1 rounded-full bg-amber-500 text-[10px] font-bold text-slate-900">0</span>
+        </div>
+
+        <!-- Indicador Online/Offline -->
+        <div id="online-indicator" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-900/40 border border-emerald-700/50 text-emerald-300 text-xs font-medium">
+          <span id="online-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="online-text">Online</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- CONTENIDO PRINCIPAL -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <main class="pt-16 pb-24 max-w-lg mx-auto px-4">
+
+    <!-- Filtros -->
+    <div class="mt-3 mb-4 flex flex-col gap-2">
+      <div class="flex gap-2">
+        <div class="flex-1 relative">
+          <input
+            type="text"
+            id="filter-search"
+            placeholder="🔍 Buscar en registros..."
+            class="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600/30 transition"
+          >
+        </div>
+        <div class="relative">
+          <input
+            type="date"
+            id="filter-date"
+            class="bg-slate-800/60 border border-slate-700/50 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-600 transition appearance-none"
+          >
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <span id="record-count" class="text-xs text-slate-500">0 registros</span>
+        <div class="flex gap-2">
+          <button id="btn-export-csv" class="text-xs text-slate-400 hover:text-slate-200 transition px-2 py-1 rounded-lg hover:bg-slate-800">📊 CSV</button>
+          <button id="btn-export-pdf" class="text-xs text-slate-400 hover:text-slate-200 transition px-2 py-1 rounded-lg hover:bg-slate-800">📄 PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de registros -->
+    <div id="records-list" class="flex flex-col gap-3"></div>
+
+    <!-- Estado vacío -->
+    <div id="empty-state" class="text-center py-16">
+      <div class="text-5xl mb-4 opacity-30">📋</div>
+      <p class="text-slate-500 text-sm mb-1">Sin registros todavía</p>
+      <p class="text-slate-600 text-xs">Presiona "+ Nuevo Registro" para comenzar</p>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- BOTÓN FLOTANTE (FAB) -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <button
+    id="btn-new-record"
+    class="fab-button fixed bottom-6 right-4 z-30 flex items-center gap-2 bg-brand-800 hover:bg-brand-700 active:bg-brand-900 text-white font-semibold px-5 py-3.5 rounded-2xl shadow-lg shadow-brand-900/40 transition-all active:scale-95"
+  >
+    <span class="text-lg">+</span>
+    <span class="text-sm">Nuevo Registro</span>
+  </button>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- MODAL: FORMULARIO DE CAPTURA -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div id="modal-record-form" class="hidden fixed inset-0 z-50 items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-lg max-h-[92vh] bg-slate-900 rounded-t-3xl sm:rounded-2xl border border-slate-700/50 overflow-y-auto overscroll-contain">
+
+      <!-- Header del modal -->
+      <div class="sticky top-0 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50 px-5 py-3 flex items-center justify-between z-10">
+        <h2 class="text-base font-bold text-white">Nuevo Registro</h2>
+        <button id="btn-close-modal" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition text-lg">✕</button>
+      </div>
+
+      <div class="px-5 py-4 space-y-5">
+
+        <!-- FOTO -->
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-2">📷 FOTO (obligatoria)</label>
+          <div id="photo-placeholder" class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center">
+            <button id="btn-take-photo" type="button" class="bg-brand-800 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-xl transition active:scale-95 text-sm">
+              📷 Tomar Foto
+            </button>
+            <p class="text-xs text-slate-500 mt-2">Se abrirá la cámara del dispositivo</p>
+          </div>
+          <div id="photo-preview" class="hidden relative">
+            <img id="photo-preview-img" class="w-full rounded-xl border border-slate-700" alt="Preview foto capturada">
+            <button id="btn-take-photo" type="button" onclick="capturePhoto()" class="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-lg hover:bg-slate-800 transition">📷 Retomar</button>
+          </div>
+        </div>
+
+        <!-- TIMESTAMP (automático, no editable) -->
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">🕒 FECHA Y HORA (automática)</label>
+          <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-2.5">
+            <p id="display-timestamp" class="text-sm text-slate-300 font-mono">—</p>
+          </div>
+        </div>
+
+        <!-- GPS (automático, no editable) -->
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">📍 GPS (automático)</label>
+          <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-2.5">
+            <p id="display-gps" class="text-sm text-slate-300 font-mono">Obteniendo ubicación...</p>
+            <p id="gps-status" class="text-amber-400 text-xs animate-pulse mt-1">⏳ Localizando...</p>
+          </div>
+        </div>
+
+        <!-- DESCRIPCIÓN -->
+        <div>
+          <label for="field-description" class="block text-xs font-medium text-slate-400 mb-1">📝 DESCRIPCIÓN (obligatoria, mín. 20 caracteres)</label>
+          <textarea
+            id="field-description"
+            rows="3"
+            maxlength="500"
+            placeholder="Ej: Colado de cimentación eje A con concreto f'c=250 kg/cm²"
+            class="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600/30 transition resize-none"
+          ></textarea>
+          <p id="desc-counter" class="text-xs text-slate-400 mt-1">0/20 caracteres mínimo</p>
+        </div>
+
+        <!-- VOLÚMENES (opcional) -->
+        <div>
+          <label for="field-volumenes" class="block text-xs font-medium text-slate-400 mb-1">📐 VOLÚMENES EJECUTADOS (m³, opcional)</label>
+          <input
+            type="number"
+            id="field-volumenes"
+            step="0.01"
+            min="0"
+            placeholder="Ej: 12.5"
+            class="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600/30 transition"
+          >
+        </div>
+
+        <!-- TIPO DE EVENTO -->
+        <div>
+          <label for="field-tipo" class="block text-xs font-medium text-slate-400 mb-1">🏷️ TIPO DE EVENTO</label>
+          <select
+            id="field-tipo"
+            class="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600/30 transition appearance-none"
+          >
+            <option value="Normal">Normal</option>
+            <option value="Incidencia">Incidencia</option>
+            <option value="Hito">Hito</option>
+          </select>
+        </div>
+
+        <!-- BOTÓN GUARDAR -->
+        <button
+          id="btn-save-record"
+          disabled
+          class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold py-3.5 rounded-xl transition active:scale-[0.98] text-sm mb-2"
+        >
+          ✅ Guardar Registro
+        </button>
+        <p class="text-center text-[11px] text-slate-600 pb-2">Foto, GPS y descripción son obligatorios</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- MODAL: DETALLE DE REGISTRO -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div id="modal-detail" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-lg max-h-[90vh] bg-slate-900 rounded-2xl border border-slate-700/50 overflow-y-auto mx-4">
+
+      <!-- Header -->
+      <div class="sticky top-0 bg-slate-900/95 backdrop-blur-sm border-b border-slate-700/50 px-5 py-3 flex items-center justify-between z-10">
+        <h2 class="text-base font-bold text-white">Detalle del Registro</h2>
+        <button id="btn-close-detail" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition text-lg">✕</button>
+      </div>
+
+      <div class="px-5 py-4">
+        <!-- Foto -->
+        <img id="detail-photo" class="w-full rounded-xl border border-slate-700 mb-4" alt="Foto del registro">
+
+        <!-- Datos -->
+        <div class="space-y-3">
+          <div class="flex items-start gap-2">
+            <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">🕒 Fecha</span>
+            <p id="detail-timestamp" class="text-sm text-slate-200"></p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">📍 GPS</span>
+            <p id="detail-gps" class="text-sm text-slate-200"></p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">📝 Descripción</span>
+            <p id="detail-description" class="text-sm text-slate-200"></p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">📐 Volúmenes</span>
+            <p id="detail-volumenes" class="text-sm text-slate-200"></p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">🏷️ Tipo</span>
+            <p id="detail-tipo" class="text-sm text-slate-200"></p>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-xs text-slate-500 w-24 flex-shrink-0 pt-0.5">☁️ Estado</span>
+            <p id="detail-sync" class="text-sm"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- TOAST CONTAINER -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-[60] flex flex-col gap-2 items-center pointer-events-none w-full max-w-sm px-4">
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- SCRIPTS -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <script src="db.js"></script>
+  <script src="app.js"></script>
+
+  <!-- Registro de Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => {
+            console.log('[SW] Registrado, scope:', reg.scope);
+
+            // Escuchar mensajes del SW
+            navigator.serviceWorker.addEventListener('message', (event) => {
+              if (event.data && event.data.type === 'SYNC_REQUESTED') {
+                if (typeof syncPendingRecords === 'function') {
+                  syncPendingRecords();
+                }
+              }
+            });
+          })
+          .catch((err) => {
+            console.error('[SW] Error al registrar:', err);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
