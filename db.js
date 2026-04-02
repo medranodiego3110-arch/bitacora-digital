@@ -1,12 +1,13 @@
 /**
  * db.js - Wrapper de IndexedDB para Bitácora Digital Construrike
- * Maneja almacenamiento local offline de registros de obra.
- * Base de datos: BitacoraDB | Object Store: registros
+ * Maneja almacenamiento local offline de registros de obra y configuración.
+ * Base de datos: BitacoraDB v2 | Stores: registros, config
  */
 
 const DB_NAME = 'BitacoraDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'registros';
+const CONFIG_STORE = 'config';
 
 class BitacoraDB {
   constructor() {
@@ -25,16 +26,23 @@ class BitacoraDB {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
+
+        // Store de registros
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           const store = db.createObjectStore(STORE_NAME, {
             keyPath: 'id',
             autoIncrement: true
           });
-          // Índices para búsqueda y filtrado
           store.createIndex('timestamp', 'timestamp', { unique: false });
           store.createIndex('synced', 'synced', { unique: false });
           store.createIndex('tipo', 'tipo', { unique: false });
-          console.log('[DB] Object store "registros" creado con índices');
+          console.log('[DB] Object store "registros" creado');
+        }
+
+        // Store de configuración (obra, residente)
+        if (!db.objectStoreNames.contains(CONFIG_STORE)) {
+          db.createObjectStore(CONFIG_STORE, { keyPath: 'key' });
+          console.log('[DB] Object store "config" creado');
         }
       };
 
@@ -51,34 +59,30 @@ class BitacoraDB {
     });
   }
 
-  /** Inserta un nuevo registro en la base de datos */
+  // ─── REGISTROS ───
+
+  /** Inserta un nuevo registro */
   addRecord(record) {
     return new Promise((resolve, reject) => {
       try {
         const tx = this.db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         const request = store.add(record);
-
-        request.onsuccess = () => {
-          console.log('[DB] Registro guardado, id:', request.result);
-          resolve(request.result);
-        };
+        request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       } catch (err) {
-        console.error('[DB] Error en addRecord:', err);
         reject(err);
       }
     });
   }
 
-  /** Obtiene todos los registros, ordenados por timestamp descendente */
+  /** Obtiene todos los registros, ordenados por timestamp desc */
   getAllRecords() {
     return new Promise((resolve, reject) => {
       try {
         const tx = this.db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
         const request = store.getAll();
-
         request.onsuccess = () => {
           const records = request.result.sort(
             (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
@@ -87,7 +91,6 @@ class BitacoraDB {
         };
         request.onerror = () => reject(request.error);
       } catch (err) {
-        console.error('[DB] Error en getAllRecords:', err);
         reject(err);
       }
     });
@@ -100,7 +103,6 @@ class BitacoraDB {
         const tx = this.db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
         const request = store.get(id);
-
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       } catch (err) {
@@ -109,26 +111,21 @@ class BitacoraDB {
     });
   }
 
-  /** Actualiza un registro existente (ej: marcar como sincronizado) */
+  /** Actualiza un registro existente */
   updateRecord(id, data) {
     return new Promise((resolve, reject) => {
       try {
         const tx = this.db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         const getReq = store.get(id);
-
         getReq.onsuccess = () => {
           const record = { ...getReq.result, ...data };
           const putReq = store.put(record);
-          putReq.onsuccess = () => {
-            console.log('[DB] Registro actualizado, id:', id);
-            resolve(record);
-          };
+          putReq.onsuccess = () => resolve(record);
           putReq.onerror = () => reject(putReq.error);
         };
         getReq.onerror = () => reject(getReq.error);
       } catch (err) {
-        console.error('[DB] Error en updateRecord:', err);
         reject(err);
       }
     });
@@ -141,11 +138,7 @@ class BitacoraDB {
         const tx = this.db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         const request = store.delete(id);
-
-        request.onsuccess = () => {
-          console.log('[DB] Registro eliminado, id:', id);
-          resolve(true);
-        };
+        request.onsuccess = () => resolve(true);
         request.onerror = () => reject(request.error);
       } catch (err) {
         reject(err);
@@ -153,7 +146,7 @@ class BitacoraDB {
     });
   }
 
-  /** Obtiene solo registros pendientes de sincronización */
+  /** Obtiene registros pendientes de sync */
   getPendingRecords() {
     return new Promise((resolve, reject) => {
       try {
@@ -161,20 +154,15 @@ class BitacoraDB {
         const store = tx.objectStore(STORE_NAME);
         const index = store.index('synced');
         const request = index.getAll(false);
-
-        request.onsuccess = () => {
-          console.log('[DB] Registros pendientes:', request.result.length);
-          resolve(request.result);
-        };
+        request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       } catch (err) {
-        console.error('[DB] Error en getPendingRecords:', err);
         reject(err);
       }
     });
   }
 
-  /** Cuenta registros pendientes de sync (para badge) */
+  /** Cuenta registros pendientes */
   countPending() {
     return new Promise((resolve, reject) => {
       try {
@@ -182,8 +170,39 @@ class BitacoraDB {
         const store = tx.objectStore(STORE_NAME);
         const index = store.index('synced');
         const request = index.count(false);
-
         request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // ─── CONFIGURACIÓN ───
+
+  /** Guarda un valor de configuración */
+  setConfig(key, value) {
+    return new Promise((resolve, reject) => {
+      try {
+        const tx = this.db.transaction(CONFIG_STORE, 'readwrite');
+        const store = tx.objectStore(CONFIG_STORE);
+        const request = store.put({ key, value });
+        request.onsuccess = () => resolve(value);
+        request.onerror = () => reject(request.error);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  /** Obtiene un valor de configuración */
+  getConfig(key) {
+    return new Promise((resolve, reject) => {
+      try {
+        const tx = this.db.transaction(CONFIG_STORE, 'readonly');
+        const store = tx.objectStore(CONFIG_STORE);
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result ? request.result.value : null);
         request.onerror = () => reject(request.error);
       } catch (err) {
         reject(err);
