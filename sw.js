@@ -3,7 +3,7 @@
  * Estrategia: Cache First para assets, Network First para datos
  */
 
-const CACHE_NAME = 'bitacora-v1';
+const CACHE_NAME = 'bitacora-v2';
 
 // Assets estáticos a cachear en instalación
 // Rutas relativas al scope del SW (compatibles con sub-path de GitHub Pages)
